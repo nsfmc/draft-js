@@ -47,7 +47,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
           this.state = {
             editorState: EditorState.createEmpty(compositeDecorator),
+            readOnly: false,
           };
+
+          this.toggleReadOnly = () => {this.setState({readOnly: !this.state.readOnly})}
 
           this.focus = () => this.refs.editor.focus();
           this.onChange = (editorState) => this.setState({editorState});
@@ -57,10 +60,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
             const HANDLE_RE = /\@[\w]+$/;
             if (char === ' ') {
               let state = this.state.editorState;
+              let contentState = state.getCurrentContent();
               let sel = state.getSelection();
               let pos = sel.getStartOffset();
               let key = sel.getStartKey();
-              let contentState = state.getCurrentContent();
               let block = contentState.getBlockForKey(key);
               let text = block.getText().substring(0,pos)
 
@@ -83,15 +86,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                   null,
                   entityKey
                 )
-                newState = Draft.Modifier.insertText(
-                  newState,
-                  newSel.merge({
-                    focusOffset: endPoint,
-                    anchorOffset: endPoint
-                  }),
-                  ' '
-                )
+
                 let newEditorState = Draft.EditorState.push(state, newState, 'apply-entity');
+                newState = Draft.Modifier.insertText(
+                  newEditorState.getCurrentContent(),
+                  newEditorState.getSelection(),
+                  char
+                )
+                newEditorState = Draft.EditorState.push(state, newState, 'insert-characters');
                 this.onChange(newEditorState)
                 return true;
               }
@@ -110,6 +112,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                   onChange={this.onChange}
                   placeholder="Write a tweet..."
                   ref="editor"
+                  readOnly={this.state.readOnly}
                   spellCheck={true}
                   handleBeforeInput={this.handleBeforeInput}
                 />
@@ -119,6 +122,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                 style={styles.button}
                 type="button"
                 value="Log State"
+              />
+              <input
+                onClick={this.toggleReadOnly}
+                style={styles.button}
+                type="button"
+                value="Go Readonly"
               />
             </div>
           );
@@ -153,7 +162,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
       }
 
       const HandleSpan = (props) => {
-        return <span {...props} style={styles.handle}>@{props.children}</span>;
+        // console.log(props)
+        let data = Draft.Entity.get(props.entityKey).getData();
+        console.log(data)
+        return <span {...props} style={styles.handle}>
+          <a href={`https://mobile.twitter.com/${data.username}`}>@{data.username}</a>
+        </span>;
       };
 
       const HashtagSpan = (props) => {
